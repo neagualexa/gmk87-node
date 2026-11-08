@@ -16,6 +16,13 @@ contextBridge.exposeInMainWorld("gmk87", {
   getPresets: () => ipcRenderer.invoke("keyboard:getPresets"),
   showSlot: (slot) => ipcRenderer.invoke("keyboard:showSlot", slot),
   syncTime: () => ipcRenderer.invoke("keyboard:syncTime"),
+  factoryReset: () => ipcRenderer.invoke("keyboard:factoryReset"),
+
+  // Saved profiles
+  listProfiles: () => ipcRenderer.invoke("profiles:list"),
+  saveProfile: (opts) => ipcRenderer.invoke("profiles:save", opts),
+  applyProfile: (name) => ipcRenderer.invoke("profiles:apply", name),
+  deleteProfile: (name) => ipcRenderer.invoke("profiles:delete", name),
 
   // System
   openFile: () => ipcRenderer.invoke("dialog:openFile"),

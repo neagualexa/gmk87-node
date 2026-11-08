@@ -88,6 +88,7 @@ Images are automatically resized to 240x135. Max 36 frames total across both slo
 ```bash
 npm run lights -- --effect breathing --brightness 7 --red 255 --green 0 --blue 0
 npm run lights -- --led-color blue --led-mode 3
+npm run lights -- --led off
 npm run lights -- --effect rainbow-waterfall --brightness 9 --speed 3
 ```
 
@@ -106,9 +107,10 @@ LED options:
 
 | Flag | Values |
 |---|---|
+| `--led` | `on` / `off` (strip light; sets brightness to 5 or 0) |
 | `--led-mode` | 0-4 |
 | `--led-color` | Name or 0-8 (red, orange, yellow, green, teal, blue, purple, white, off) |
-| `--led-saturation` | 0-9 |
+| `--led-brightness` | 0-9 (0 = off; `--led-saturation` also works) |
 | `--led-rainbow` | true / false |
 
 Other:
@@ -125,6 +127,23 @@ npm run preset -- gaming
 ```
 
 Available: `gaming`, `relaxed`, `party`, `minimal`, `productivity`, `purple-wave`, `matrix`, `sunset`
+
+### Save your own profiles
+
+Save the keyboard's current lighting settings so you can restore them later, the same way you apply a preset:
+
+```bash
+npm run preset -- --save my-setup                 # save current settings
+npm run preset -- gaming --save before-gaming     # save current settings, then apply a preset
+npm run preset -- my-setup                        # restore a saved profile
+npm run preset -- --list                          # list presets and saved profiles
+npm run preset -- --delete my-setup               # delete a profile
+npm run preset -- --factory-reset                 # factory defaults, like holding Fn+Space
+```
+
+In the desktop app, use **Saved Profiles** on the Color Options page. The page shows which preset or profile is loaded and whether you have unsaved edits. **Apply Changes**, **Save** and **Factory Reset** are in the left sidebar. **Save** writes your edits back to the loaded profile; if a preset is loaded, it creates a new profile from the preset plus your edits. **Factory Reset** restores the underglow and strip light defaults, like holding Fn+Space. When you apply a preset or profile while you have unsaved edits, the app warns you and lets you save them first.
+
+Profiles are stored in `~/.config/gmk87/profiles.json` (`%APPDATA%\gmk87\profiles.json` on Windows), shared by the CLI and the app. Set `GMK87_PROFILES` to use a different file.
 
 ### Sync time
 

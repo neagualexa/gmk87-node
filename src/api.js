@@ -33,6 +33,12 @@
  *   console.log(config.image1Frames); // frame count in slot 0
  *   console.log(config.frameDuration); // animation delay in ms
  *
+ *   // Save current keyboard settings as a profile, then restore it later
+ *   await gmk87.saveProfile("my-setup");
+ *   await gmk87.setLighting({ underglow: { effect: 12 } });
+ *   await gmk87.applyProfile("my-setup");
+ *   console.log(Object.keys(gmk87.listProfiles()));
+ *
  *   // Get device info
  *   const info = gmk87.getKeyboardInfo();
  *   console.log(info.product, info.vendorId, info.productId);
@@ -57,6 +63,15 @@ import {
 } from "./lib/device.js";
 
 import { processAndSend } from "./sendImageMagick.js";
+import { FACTORY_DEFAULTS } from "./factoryDefaults.js";
+
+import {
+  saveProfile,
+  loadProfiles as listProfiles,
+  getProfile,
+  deleteProfile,
+  getProfilesPath,
+} from "./profiles.js";
 
 /**
  * Upload images with ImageMagick preprocessing (supports GIFs)
@@ -85,7 +100,7 @@ async function uploadImage(imagePath, slot = 0, options = {}) {
  * @param {Object} [changes.led] - LED key settings
  * @param {number} [changes.led.mode] - Mode 0-4
  * @param {number} [changes.led.color] - 0=red,1=orange,2=yellow,3=green,4=teal,5=blue,6=purple,7=white,8=off
- * @param {number} [changes.led.saturation] - Saturation 0-9
+ * @param {number} [changes.led.saturation] - Strip brightness 0-9 (0 = off; named "saturation" in the protocol)
  * @param {boolean} [changes.led.rainbow] - Rainbow mode
  * @param {number} [changes.showImage] - 0=time, 1=slot 0, 2=slot 1
  */
@@ -114,6 +129,23 @@ async function readConfig() {
   }
 }
 
+/**
+ * Apply a saved profile
+ * @param {string} name - Profile name
+ */
+async function applyProfile(name) {
+  const profile = getProfile(name);
+  if (!profile) throw new Error(`Profile "${name}" not found`);
+  return configureLighting(profile.config);
+}
+
+/**
+ * Restore factory default underglow and LED settings (same as holding Fn+Space for 3 seconds).
+ */
+async function factoryReset() {
+  return configureLighting(FACTORY_DEFAULTS);
+}
+
 export default {
   uploadImage,
   setLighting,
@@ -121,6 +153,13 @@ export default {
   syncTime,
   readConfig,
   getKeyboardInfo,
+  saveProfile,
+  listProfiles,
+  getProfile,
+  deleteProfile,
+  applyProfile,
+  getProfilesPath,
+  factoryReset,
 };
 
 export {
@@ -130,4 +169,12 @@ export {
   syncTime,
   readConfig,
   getKeyboardInfo,
+  saveProfile,
+  listProfiles,
+  getProfile,
+  deleteProfile,
+  applyProfile,
+  getProfilesPath,
+  factoryReset,
+  FACTORY_DEFAULTS,
 };

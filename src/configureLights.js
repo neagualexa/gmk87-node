@@ -43,6 +43,9 @@ export const LED_MODES = {
   FIXED_COLOR_ALT: 0x04,
 };
 
+/** LED brightness used by --led on when none is given (led.saturation is the strip's brightness) */
+const LED_DEFAULT_BRIGHTNESS = 5;
+
 /**
  * LED color presets for the big LED
  */
@@ -76,7 +79,7 @@ const DEFAULT_CONFIG = {
   },
   led: {
     mode: LED_MODES.BLINKING_ONE_COLOR,
-    saturation: 0, // 0-9
+    saturation: 0, // 0-9, strip brightness (0 = off)
     rainbow: 1, // 0=hue mode only, 1=rainbow mode
     color: LED_COLORS.RED,
   },
@@ -259,9 +262,24 @@ function argsToConfig(args) {
     }
   }
 
-  if (args["led-saturation"] !== undefined) {
+  // --led-brightness is the accurate name; --led-saturation is kept for compatibility
+  const ledBrightness = args["led-brightness"] ?? args["led-saturation"];
+  if (ledBrightness !== undefined) {
     config.led = config.led || {};
-    config.led.saturation = parseInt(args["led-saturation"]);
+    config.led.saturation = parseInt(ledBrightness);
+  }
+
+  // On/off is brightness: off = 0, on = given brightness or the default
+  if (args.led !== undefined) {
+    const v = String(args.led).toLowerCase();
+    config.led = config.led || {};
+    if (v === "off" || v === "false" || v === "0") {
+      config.led.saturation = 0;
+    } else if (v === "on" || v === "true" || v === "1") {
+      if (!config.led.saturation) config.led.saturation = LED_DEFAULT_BRIGHTNESS;
+    } else {
+      throw new Error(`--led must be "on" or "off" (got "${args.led}")`);
+    }
   }
 
   if (args["led-rainbow"] !== undefined) {
@@ -318,8 +336,9 @@ Underglow Options:
   --blue <0-255>              Blue component
 
 LED Options:
+  --led <on|off>              Turn the strip light on (brightness 5) or off (brightness 0)
   --led-mode <0-4>            LED mode (0=blinking, 3=fixed, etc.)
-  --led-saturation <0-9>      LED saturation
+  --led-brightness <0-9>      LED strip brightness (0 = off; alias: --led-saturation)
   --led-rainbow <true|false>  LED rainbow mode
   --led-color <name|number>   LED color (RED, BLUE, etc.)
 
@@ -341,6 +360,7 @@ Examples:
   node configureLights.js --effect rainbow-cycle --brightness 5
   node configureLights.js --effect breathing --red 255 --green 0 --blue 0
   node configureLights.js --led-color blue --led-mode 3
+  node configureLights.js --led off
 
 Note: This utility now uses robust acknowledgment checking and retry logic
       to ensure configuration changes are applied consistently.
@@ -348,7 +368,13 @@ Note: This utility now uses robust acknowledgment checking and retry logic
     process.exit(0);
   }
 
-  const config = argsToConfig(args);
+  let config;
+  try {
+    config = argsToConfig(args);
+  } catch (err) {
+    console.error("\n❌ Error:", err.message);
+    process.exit(1);
+  }
 
   configureLights(config)
     .then((success) => {

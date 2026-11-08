@@ -25,9 +25,12 @@ const Sidebar = {
     },
   ],
 
-  async render(activeId) {
+  /**
+   * Renders synchronously so views can fill #sidebar-actions right away;
+   * the version number is filled in once it arrives.
+   */
+  render(activeId) {
     const sidebar = document.getElementById("sidebar");
-    const version = await window.gmk87.getVersion();
 
     sidebar.innerHTML = `
       <div class="sidebar-title">GMK87 Configurator</div>
@@ -42,9 +45,10 @@ const Sidebar = {
           )
           .join("")}
       </nav>
+      <div class="sidebar-actions" id="sidebar-actions"></div>
       <div class="sidebar-spacer"></div>
       <div class="sidebar-footer">
-        <div class="sidebar-version">v${version}</div>
+        <div class="sidebar-version" id="sidebar-version"></div>
         <button class="sidebar-item" id="show-logs">
           <span class="material-icons">terminal</span>
           <span>Logs</span>
@@ -55,6 +59,11 @@ const Sidebar = {
         </button>
       </div>
     `;
+
+    window.gmk87.getVersion().then((version) => {
+      const el = document.getElementById("sidebar-version");
+      if (el) el.textContent = `v${version}`;
+    });
 
     // Nav click handlers
     sidebar.querySelectorAll("[data-view]").forEach((btn) => {

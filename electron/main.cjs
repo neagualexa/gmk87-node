@@ -153,6 +153,58 @@ function setupIpcHandlers() {
     }
   });
 
+  ipcMain.handle("keyboard:factoryReset", async () => {
+    try {
+      const gmk87 = await getApi();
+      await gmk87.factoryReset();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("profiles:list", async () => {
+    try {
+      const gmk87 = await getApi();
+      return { success: true, data: gmk87.listProfiles() };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  // Save a profile. If config is omitted, the keyboard's current settings are read.
+  ipcMain.handle("profiles:save", async (_event, { name, config, description } = {}) => {
+    try {
+      const gmk87 = await getApi();
+      const saved = await gmk87.saveProfile(name, { config, description });
+      return { success: true, data: saved };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("profiles:apply", async (_event, name) => {
+    try {
+      const gmk87 = await getApi();
+      await gmk87.applyProfile(name);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle("profiles:delete", async (_event, name) => {
+    try {
+      const gmk87 = await getApi();
+      if (!gmk87.deleteProfile(name)) {
+        return { success: false, error: `Profile "${name}" not found` };
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle("keyboard:showSlot", async (_event, slot) => {
     try {
       const gmk87 = await getApi();

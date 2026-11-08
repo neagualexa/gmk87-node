@@ -9,6 +9,13 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { configureLighting } from "./lib/device.js";
+import { FACTORY_DEFAULTS } from "./factoryDefaults.js";
+import {
+  loadProfiles,
+  saveProfile,
+  deleteProfile,
+  getProfilesPath,
+} from "./profiles.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,23 +54,46 @@ function listPresets(presets) {
 }
 
 /**
- * Applies a preset configuration
+ * Lists saved user profiles
+ */
+function listProfiles() {
+  const entries = Object.entries(loadProfiles());
+  console.log("\n💾 Saved Profiles:\n");
+  if (entries.length === 0) {
+    console.log("  (none) Save one with: npm run preset -- --save <name>\n");
+  }
+  entries.forEach(([name, profile]) => {
+    console.log(`  💾 ${name}`);
+    console.log(`     ${profile.description}\n`);
+  });
+  console.log(`Stored in: ${getProfilesPath()}\n`);
+}
+
+/**
+ * Applies a preset or saved profile configuration
+ * Built-in presets are checked first, then saved profiles.
  * Uses the robust pipeline with ACK checking and retries
- * @param {string} presetName - Name of preset to apply
+ * @param {string} presetName - Name of preset or profile to apply
  * @param {string} [presetsPath] - Optional custom presets file path
  * @returns {Promise<boolean>} True if preset was successfully applied
  */
 async function applyPreset(presetName, presetsPath) {
   const presets = loadPresets(presetsPath);
-  const preset = presets.presets[presetName];
+  let preset = presets.presets[presetName];
+  let kind = "preset";
+
+  if (!preset) {
+    preset = loadProfiles()[presetName];
+    kind = "profile";
+  }
 
   if (!preset) {
     throw new Error(
-      `Preset "${presetName}" not found. Use --list to see available presets.`
+      `Preset or profile "${presetName}" not found. Use --list to see available presets and profiles.`
     );
   }
 
-  console.log(`\n🎨 Applying preset: ${presetName}`);
+  console.log(`\n🎨 Applying ${kind}: ${presetName}`);
   console.log(`   ${preset.description}\n`);
 
   return await configureLighting(preset.config);
@@ -119,8 +149,14 @@ Usage: node loadPreset.js [preset-name] [options]
    or: npm run preset [preset-name]
 
 Options:
-  --list, -l              List all available presets
+  --list, -l              List all available presets and saved profiles
   --file <path>           Use custom presets file
+  --save <name>           Save the keyboard's current settings as a profile
+                          (combine with a preset name to save first, then apply)
+  --description <text>    Description for --save
+  --delete <name>         Delete a saved profile
+  --factory-reset         Reset underglow and LED to factory defaults
+                          (same as holding Fn+Space; combine with --save to back up first)
   --help, -h              Show this help message
 
 Examples:
@@ -128,6 +164,13 @@ Examples:
   node loadPreset.js --list
   node loadPreset.js party --file ./my-presets.json
   npm run preset gaming
+  npm run preset -- --save my-setup
+  npm run preset -- gaming --save before-gaming
+  npm run preset -- my-setup
+  npm run preset -- --delete my-setup
+  npm run preset -- --factory-reset --save before-reset
+
+Profiles are stored in: ${getProfilesPath()}
 
 Note: This utility now uses robust acknowledgment checking and retry logic
       to ensure preset changes are applied consistently.
@@ -139,6 +182,37 @@ Note: This utility now uses robust acknowledgment checking and retry logic
     if (args.list || args.l) {
       const presets = loadPresets(args.file);
       listPresets(presets);
+      listProfiles();
+      return;
+    }
+
+    if (args.delete !== undefined) {
+      if (args.delete === true) throw new Error("--delete requires a profile name");
+      if (!deleteProfile(args.delete)) {
+        throw new Error(`Profile "${args.delete}" not found`);
+      }
+      console.log(`\n🗑️  Deleted profile "${args.delete}"\n`);
+      return;
+    }
+
+    if (args.save !== undefined) {
+      if (args.save === true) throw new Error("--save requires a profile name");
+      console.log("\n📥 Reading current keyboard settings...");
+      const { name } = await saveProfile(args.save, {
+        description: typeof args.description === "string" ? args.description : undefined,
+      });
+      console.log(`💾 Saved current settings as profile "${name}"`);
+      if (!args.preset && !args["factory-reset"]) {
+        console.log(`   Restore later with: npm run preset -- "${name}"\n`);
+        return;
+      }
+    }
+
+    if (args["factory-reset"]) {
+      console.log("\n🏭 Restoring factory defaults (underglow and LED)...");
+      const ok = await configureLighting(FACTORY_DEFAULTS);
+      console.log(ok ? "\n✅ Factory defaults restored!\n" : "\n⚠️  Sent but may not have been acknowledged\n");
+      if (!ok) process.exit(1);
       return;
     }
 
@@ -171,4 +245,4 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   });
 }
 
-export { loadPresets, applyPreset, listPresets };
+export { loadPresets, applyPreset, listPresets, listProfiles };
